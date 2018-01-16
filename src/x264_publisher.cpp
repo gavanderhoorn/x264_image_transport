@@ -284,7 +284,7 @@ namespace x264_image_transport {
 	{
         int width = message.width;
         int height = message.height;
-        int fps = 24; // probably change this
+        int fps = 24;
         int srcstride = message.step;
 
 
