@@ -32,32 +32,32 @@ else (FFMPEG_LIBRARIES AND FFMPEG_INCLUDE_DIR)
 
   find_path(FFMPEG_AVCODEC_INCLUDE_DIR
     NAMES libavcodec/avcodec.h
-    PATHS $ENV{HOME}/ffmpeg_build/include ${_FFMPEG_AVCODEC_INCLUDE_DIRS} /usr/include /usr/local/include /opt/local/include /sw/include
+    PATHS $ENV{HOME}/ffmpeg_build/include ${_FFMPEG_AVCODEC_INCLUDE_DIRS} /usr/include /usr/local/include /opt/local/include /sw/include /usr/include/x86_64-linux-gnu
     PATH_SUFFIXES ffmpeg libav
     NO_DEFAULT_PATH
   )
 
   find_library(FFMPEG_LIBAVCODEC
     NAMES avcodec
-    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_AVCODEC_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib
+    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_AVCODEC_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib /usr/lib/x86_64-linux-gnu
     NO_DEFAULT_PATH
   )
 
   find_library(FFMPEG_LIBAVFORMAT
     NAMES avformat
-    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_AVFORMAT_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib
+    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_AVFORMAT_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib /usr/lib/x86_64-linux-gnu
     NO_DEFAULT_PATH
   )
 
   find_library(FFMPEG_LIBAVUTIL
     NAMES avutil
-    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_AVUTIL_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib
+    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_AVUTIL_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib /usr/lib/x86_64-linux-gnu
     NO_DEFAULT_PATH
   )
 
   find_library(FFMPEG_LIBSWSCALE
     NAMES swscale
-    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_SWSCALE_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib
+    PATHS $ENV{HOME}/ffmpeg_build/lib ${_FFMPEG_SWSCALE_LIBRARY_DIRS} /usr/lib /usr/local/lib /opt/local/lib /sw/lib /usr/lib/x86_64-linux-gnu
     NO_DEFAULT_PATH
   )
 

@@ -6,13 +6,13 @@
 
 //using namespace std;
 namespace x264_image_transport {
-    
+
     namespace enc = sensor_msgs::image_encodings;
 
 
     x264Subscriber::x264Subscriber()
         :   latest_image_(new sensor_msgs::Image()), initialized_(false)
-    {	
+    {
 	n = 2;
 	/*for(int i=0; i<n; i++){
         //m_pFormatCtx = NULL;
@@ -59,8 +59,8 @@ namespace x264_image_transport {
         //------------------------------------------------------------------------------
         //Set the codec to H264
         ROS_INFO("VideoOutputContext::initialize : Setting AVCodecs");
-	codecs[0].m_pCodec = avcodec_find_decoder(CODEC_ID_H264);
-	codecs[1].m_pCodec = avcodec_find_decoder(CODEC_ID_MPEG4);
+	codecs[0].m_pCodec = avcodec_find_decoder(AV_CODEC_ID_H264);
+	codecs[1].m_pCodec = avcodec_find_decoder(AV_CODEC_ID_MPEG4);
 	for(int i=0; i<n;i++){
 		if(codecs[i].m_pCodec==NULL) {
 		    ROS_ERROR("VideoOutputContext::initialize : Unsupported codec");
@@ -75,7 +75,7 @@ namespace x264_image_transport {
 
 		ROS_INFO("Opening Codec %d", i);
 
-		// open the decoder codec 
+		// open the decoder codec
 		if (avcodec_open2(codecs[i].m_pCodecCtx, codecs[i].m_pCodec, NULL) < 0)
 		{
 		    ROS_ERROR("Could not open the decoder");
@@ -92,16 +92,16 @@ namespace x264_image_transport {
 		    ROS_ERROR("Cannot allocate frame");
 		    return;
 		}
-		
+
 		ROS_INFO("Making buffer %d", i);
 		// Determine required buffer size and allocate buffer
-		int numBytes=avpicture_get_size(PIX_FMT_RGB24, codecs[i].m_pCodecCtx->width,codecs[i].m_pCodecCtx->height);
+		int numBytes=avpicture_get_size(AV_PIX_FMT_RGB24, codecs[i].m_pCodecCtx->width,codecs[i].m_pCodecCtx->height);
 		codecs[i].m_buffer=(uint8_t *)av_malloc(numBytes*sizeof(uint8_t));
 
 		// Assign appropriate parts of buffer to image planes in pFrameRGB
 		// Note that pFrameRGB is an AVFrame, but AVFrame is a superset
 		// of AVPicture
-		avpicture_fill((AVPicture *)codecs[i].m_pFrameRGB, codecs[i].m_buffer, PIX_FMT_RGB24,
+		avpicture_fill((AVPicture *)codecs[i].m_pFrameRGB, codecs[i].m_buffer, AV_PIX_FMT_RGB24,
 		               codecs[i].m_pCodecCtx->width, codecs[i].m_pCodecCtx->height);
 		codecs[i].m_img_convert_ctx = NULL;
 	}
@@ -119,14 +119,14 @@ namespace x264_image_transport {
         m_pCodecCtx = avcodec_alloc_context3(m_pCodec);
 
 
-        
+
         m_pCodecCtx->width = latest_image_->width;
         m_pCodecCtx->height= latest_image_->height;
 
  // Open codec
         ROS_INFO("Opening Codec");
 
-        /* open the decoder codec 
+        /* open the decoder codec
         if (avcodec_open2(m_pCodecCtx, m_pCodec, NULL) < 0)
         {
             ROS_ERROR("Could not open the decoder");
@@ -169,17 +169,17 @@ namespace x264_image_transport {
 		{
 		    avcodec_close(codecs[i].m_pCodecCtx);
 		}
-		
+
 		if(codecs[i].m_pFrame)
 		{
 		     av_free(codecs[i].m_pFrame);
 		}
-		
+
 		if (codecs[i].m_pFrameRGB)
 		{
 		    av_free(codecs[i].m_pFrameRGB);
 		}
-		    
+
 		if (codecs[i].m_img_convert_ctx)
 		{
 		    sws_freeContext(codecs[i].m_img_convert_ctx);
@@ -201,11 +201,11 @@ namespace x264_image_transport {
         Base::subscribeImpl(nh, base_topic, queue_size, callback, tracked_object, transport_hints);
 
         // Set up reconfigure server for this topic
-#ifndef __APPLE__       
+#ifndef __APPLE__
         reconfigure_server_ = boost::make_shared<ReconfigureServer>(this->nh());
         ReconfigureServer::CallbackType f = boost::bind(&x264Subscriber::configCb, this, _1, _2);
         reconfigure_server_->setCallback(f);
-#endif        
+#endif
     }
 
 #ifndef __APPLE__
@@ -219,12 +219,12 @@ namespace x264_image_transport {
     void x264Subscriber::convert_rgb(AVCodecContext *codec, AVFrame *inFrame, AVFrame *outFrame)
     {
             //Initialize converter context if required
-	    	
+
             if (!m_img_convert_ctx)
             {
 		   ROS_INFO("SWScale %d,%d,%d", codec->width, codec->height, codec->pix_fmt);
                    m_img_convert_ctx =sws_getContext(codec->width, codec->height,codec->pix_fmt, //src
-                                                      codec->width, codec->height, PIX_FMT_RGB24, //dest
+                                                      codec->width, codec->height, AV_PIX_FMT_RGB24, //dest
                                                       SWS_FAST_BILINEAR,NULL, NULL, NULL);
             }
 
@@ -233,19 +233,19 @@ namespace x264_image_transport {
                               inFrame->linesize, 0,
                               codec->height,
                               outFrame->data, outFrame->linesize);
-		
+
 
     }
 
     void x264Subscriber::internalCallback(const x264_image_transport::x264PacketConstPtr& message, const Callback& callback)
     {
         //ROS_INFO("x264Subscriber::internalCallback");
-        
+
         if (!initialized_)
         {
             initialize_codec(message->img_width, message->img_height);
         }
-        
+
         //Something went wrong
         if (!initialized_)
             return;
@@ -268,7 +268,7 @@ namespace x264_image_transport {
 
         //copy data
         memcpy(packet.data,&message->data[0],message->data.size());
-	/* 
+	/*
 	int frameFinished;
 	int result = avcodec_decode_video2(m_pCodecCtx, m_pFrame, &frameFinished,&packet);
 
@@ -276,7 +276,7 @@ namespace x264_image_transport {
         if(result >= 0 && frameFinished > 0)
         {
               //ROS_INFO("Decoding result : %i frameFinished : %i",result,frameFinished);
-              
+
               //Convert input image to RGB32 format
               convert_rgb(m_pCodecCtx,m_pFrame,m_pFrameRGB);
 
@@ -297,16 +297,16 @@ namespace x264_image_transport {
         if(result >= 0 && frameFinished > 0)
         {
               //ROS_INFO("Decoding result : %i frameFinished : %i",result,frameFinished);
-              
+
               //Convert input image to RGB24 format
               //convert_rgb(m_pCodecCtx,m_pFrame,m_pFrameRGB);
 	      if(!codecs[index].m_img_convert_ctx){
- 			codecs[index].m_img_convert_ctx =sws_getContext(codecs[index].m_pCodecCtx->width, 
+ 			codecs[index].m_img_convert_ctx =sws_getContext(codecs[index].m_pCodecCtx->width,
 							codecs[index].m_pCodecCtx->height,
 							codecs[index].m_pCodecCtx->pix_fmt,
-                                                      	codecs[index].m_pCodecCtx->width, 
-							codecs[index].m_pCodecCtx->height, 
-							PIX_FMT_RGB24, SWS_FAST_BILINEAR,NULL, NULL, NULL);
+                                                      	codecs[index].m_pCodecCtx->width,
+							codecs[index].m_pCodecCtx->height,
+							AV_PIX_FMT_RGB24, SWS_FAST_BILINEAR,NULL, NULL, NULL);
 	      }
 	      sws_scale(codecs[index].m_img_convert_ctx, codecs[index].m_pFrame->data, codecs[index].m_pFrame->linesize, 0,
                               codecs[index].m_pCodecCtx->height, codecs[index].m_pFrameRGB->data, codecs[index].m_pFrameRGB->linesize);
@@ -319,7 +319,7 @@ namespace x264_image_transport {
               //Call callback (new image received)
               callback(latest_image_);
         }
-	
+
         //free packet
         av_free_packet(&packet);
     }
