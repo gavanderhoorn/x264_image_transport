@@ -198,6 +198,9 @@ namespace x264_image_transport {
             return;
         }
 
+        encFrame_->width = width;
+        encFrame_->height = height;
+
         // Prepare the software scale context
         // Will convert from RGB24 to YUV420P
         if (encoding == enc::BGR8)
@@ -205,24 +208,28 @@ namespace x264_image_transport {
             sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_BGR24, //src
                                     encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
                                     SWS_FAST_BILINEAR, NULL, NULL, NULL);
+            encFrame_->format = AV_PIX_FMT_BGR24;
         }
         else if (encoding == enc::RGB8)
         {
             sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_RGB24, //src
                                     encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
                                     SWS_FAST_BILINEAR, NULL, NULL, NULL);
+            encFrame_->format = AV_PIX_FMT_RGB24;
         }
         else if (encoding == enc::RGB16)
         {
             sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_RGB48, //src
                                     encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
                                     SWS_FAST_BILINEAR, NULL, NULL, NULL);
+            encFrame_->format = AV_PIX_FMT_RGB48;
         }
         else if (encoding == enc::YUV422)
         {
             sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_UYVY422, //src
                                     encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
                                     SWS_FAST_BILINEAR, NULL, NULL, NULL);
+            encFrame_->format = AV_PIX_FMT_UYVY422;
         }
         else if (encoding == enc::BAYER_GBRG16)
         {
@@ -249,7 +256,6 @@ namespace x264_image_transport {
         //Allocate  buffer
         buffer_ = new unsigned char[width * height * 2];
 
-
         //Allocate picture region
         avpicture_alloc((AVPicture *)encFrame_, encCdcCtx_->pix_fmt, width, height);
 
@@ -261,6 +267,8 @@ namespace x264_image_transport {
 		initialized_ = true;
 		ROS_INFO("x264Publisher::initialize_codec(): codec initialized (width: %i, height: %i, fps: %i)",width,height,fps);
         pthread_mutex_unlock (&mutex_);
+
+        av_log_set_level(AV_LOG_QUIET); // silence all the errors/warnings
 	}
 
 
@@ -276,7 +284,7 @@ namespace x264_image_transport {
 	{
         int width = message.width;
         int height = message.height;
-        int fps = 24;
+        int fps = 24; // probably change this
         int srcstride = message.step;
 
 

@@ -104,6 +104,8 @@ namespace x264_image_transport {
 		avpicture_fill((AVPicture *)codecs[i].m_pFrameRGB, codecs[i].m_buffer, AV_PIX_FMT_RGB24,
 		               codecs[i].m_pCodecCtx->width, codecs[i].m_pCodecCtx->height);
 		codecs[i].m_img_convert_ctx = NULL;
+
+        av_log_set_level(AV_LOG_QUIET); // silence all the errors/warnings
 	}
 
 /*
