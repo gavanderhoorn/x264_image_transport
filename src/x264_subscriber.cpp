@@ -36,6 +36,12 @@ namespace x264_image_transport {
 
     void x264Subscriber::initialize_codec(int width, int height)
     {
+	if (initialized_)
+	{
+		ROS_ERROR("x264Subscriber already initialized");
+		return;
+	}
+	
         ROS_INFO("x264Subscriber::initialize_codec(int width = %i, int height = %i)",width, height);
 	codecs = (codec_meta *) malloc(n*sizeof(codec_meta));
 	// must be called before using avcodec lib
@@ -165,7 +171,11 @@ namespace x264_image_transport {
 
     x264Subscriber::~x264Subscriber()
     {
-        initialized_ = false;
+	if (!initialized_)
+        {
+		return;
+        }
+
         for(int i=0;i<n;i++){
 		if (codecs[i].m_pCodecCtx)
 		{
