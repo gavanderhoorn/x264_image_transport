@@ -172,9 +172,9 @@ namespace x264_image_transport {
     x264Subscriber::~x264Subscriber()
     {
 	if (!initialized_)
-        {
+	{
 		return;
-        }
+	}
 
         for(int i=0;i<n;i++){
 		if (codecs[i].m_pCodecCtx)
