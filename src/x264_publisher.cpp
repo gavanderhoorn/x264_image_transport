@@ -22,8 +22,6 @@ namespace x264_image_transport {
 	
 	x264Publisher::~x264Publisher()
 	{
-		ROS_INFO("x264Publisher::~x264Publisher()");
-		
          pthread_mutex_lock (&mutex_);
 
          memory_cleanup();
