@@ -58,9 +58,6 @@ namespace x264_image_transport {
 #ifndef __APPLE__	
 	void x264Publisher::configCb(Config& config, uint32_t level)
 	{
-		//HANDLE CONFIGURATION...
-		ROS_WARN("Configuration changed qmax: %i",config.qmax);
-
         qmax_ = config.qmax;
 
         //reinitialize codec
