@@ -22,12 +22,12 @@ namespace x264_image_transport {
 	
 	x264Publisher::~x264Publisher()
 	{
-         pthread_mutex_lock (&mutex_);
+        pthread_mutex_lock (&mutex_);
 
-         memory_cleanup();
+        memory_cleanup();
 
-         pthread_mutex_unlock (&mutex_);
-         pthread_mutex_destroy(&mutex_);
+        pthread_mutex_unlock (&mutex_);
+        pthread_mutex_destroy(&mutex_);
 	}
 	
 	void x264Publisher::advertiseImpl(ros::NodeHandle &nh, const std::string &base_topic, uint32_t queue_size,
@@ -36,23 +36,23 @@ namespace x264_image_transport {
 	                                    const ros::VoidPtr &tracked_object, bool latch)
 	{
 		
-	  //TODO UNDERSTAND THOSE PARAMETERS...	
-		
-		
-	  // queue_size doesn't account for the 3 header packets, so we correct (with a little extra) here.
-	  queue_size += 4;
-	  // Latching doesn't make a lot of sense with this transport. Could try to save the last keyframe,
-	  // but do you then send all following delta frames too?
-	  latch = false;
-	  typedef image_transport::SimplePublisherPlugin<x264_image_transport::x264Packet> Base;
-	  Base::advertiseImpl(nh, base_topic, queue_size, user_connect_cb, user_disconnect_cb, tracked_object, latch);
-	
-	  // Set up reconfigure server for this topic
-#ifndef __APPLE__	  
-	  reconfigure_server_ = boost::make_shared<ReconfigureServer>(this->nh());
-	  ReconfigureServer::CallbackType f = boost::bind(&x264Publisher::configCb, this, _1, _2);
-	  reconfigure_server_->setCallback(f);
-#endif	  
+        //TODO UNDERSTAND THOSE PARAMETERS...	
+        
+        
+        // queue_size doesn't account for the 3 header packets, so we correct (with a little extra) here.
+        queue_size += 4;
+        // Latching doesn't make a lot of sense with this transport. Could try to save the last keyframe,
+        // but do you then send all following delta frames too?
+        latch = false;
+        typedef image_transport::SimplePublisherPlugin<x264_image_transport::x264Packet> Base;
+        Base::advertiseImpl(nh, base_topic, queue_size, user_connect_cb, user_disconnect_cb, tracked_object, latch);
+
+        // Set up reconfigure server for this topic
+    #ifndef __APPLE__	  
+        reconfigure_server_ = boost::make_shared<ReconfigureServer>(this->nh());
+        ReconfigureServer::CallbackType f = boost::bind(&x264Publisher::configCb, this, _1, _2);
+        reconfigure_server_->setCallback(f);
+    #endif	  
 	}
 
 #ifndef __APPLE__	
@@ -110,43 +110,20 @@ namespace x264_image_transport {
         initialized_ = false;
     }
 
-	void x264Publisher::initialize_codec(int width, int height, int fps, const std::string& encoding) const
-	{
-        pthread_mutex_lock (&mutex_);
-	
-	    // must be called before using avcodec lib
-        avcodec_register_all();
-        //Register codecs, devices and formats
-        av_register_all();
-        //Initialize network, this is new from april 2013, it will initialize the RTP
-        avformat_network_init();
-	
-	    //Codec
-	    AVCodec *codec = 0;
-	    
-	    codec = avcodec_find_encoder(AV_CODEC_ID_H264);	    
-	    if (!codec)
-	    {
-	        ROS_ERROR("Unable to find H264 encoder, ffmpeg version too old ?");
+    void x264Publisher::initialize_codec_context(int width, int height, int fps, AVCodec *codec) const
+    {
+        //Context
+        encCdcCtx_ = avcodec_alloc_context3(codec);
+        if (!encCdcCtx_)
+        {
+            ROS_ERROR("Unable to allocate encoder context");
             //Cleanup memory            
             memory_cleanup();
             pthread_mutex_unlock (&mutex_);
-	        return;
-	    }
-	    
-	    //Context
-	    encCdcCtx_ = avcodec_alloc_context3(codec);
-        if (!encCdcCtx_)
-        {
-           ROS_ERROR("Unable to allocate encoder context");
-           //Cleanup memory            
-           memory_cleanup();
-           pthread_mutex_unlock (&mutex_);
-           return;
+            return;
         }
-	    
-	    
-	    //Setup some parameter
+        
+        //Setup some parameter
         /* put sample parameters */
         encCdcCtx_->bit_rate = 512000; //Seems a good starting point
         encCdcCtx_->qmax = qmax_; //Allow big degradation
@@ -164,21 +141,61 @@ namespace x264_image_transport {
         //Theory : High gop_size (more b-frame and p-frame) = High CPU, Low Bandwidth
         //       : Low gop_size (more intra-frame)  = Low CPU, High Bandwidth
         encCdcCtx_->gop_size = (fr.num/fr.den)/2; /* emit one group of picture (which has an intra frame) every  frameRate/2 */
-        encCdcCtx_->max_b_frames=2;
+        encCdcCtx_->max_b_frames = 0;
         encCdcCtx_->pix_fmt = AV_PIX_FMT_YUV420P;
         
         av_opt_set(encCdcCtx_->priv_data, "profile", "main", AV_OPT_SEARCH_CHILDREN);
         av_opt_set(encCdcCtx_->priv_data, "tune", "zerolatency", AV_OPT_SEARCH_CHILDREN);
-        av_opt_set(encCdcCtx_->priv_data, "preset", "ultrafast", AV_OPT_SEARCH_CHILDREN);
-        
-	    /* open the encoder codec */
-        if (avcodec_open2(encCdcCtx_, codec, NULL) < 0)
+
+        if(codec->id == AV_CODEC_ID_H264)
+            av_opt_set(encCdcCtx_->priv_data, "preset", "ultrafast", AV_OPT_SEARCH_CHILDREN);
+    }
+
+	void x264Publisher::initialize_codec(int width, int height, int fps, const std::string& encoding) const
+	{
+        pthread_mutex_lock (&mutex_);
+
+        // must be called before using avcodec lib
+        avcodec_register_all();
+        //Register codecs, devices and formats
+        av_register_all();
+        //Initialize network, this is new from april 2013, it will initialize the RTP
+        avformat_network_init();
+
+        //Codec
+        AVCodec *codec = 0;
+      
+    //    codec = avcodec_find_encoder(AV_CODEC_ID_H264);	    
+        codec = avcodec_find_encoder_by_name("h264_nvenc");
+        if (!codec)
         {
-            ROS_ERROR("Could not open the encoder");
+            ROS_ERROR("Unable to find H264 encoder, ffmpeg version too old ?");
             //Cleanup memory            
             memory_cleanup();
             pthread_mutex_unlock (&mutex_);
             return;
+        }
+
+        initialize_codec_context(width, height, fps, codec);
+
+	    /* open the encoder codec */
+        if (avcodec_open2(encCdcCtx_, codec, NULL) < 0)
+        {
+            ROS_ERROR("Could not open the encoder");
+
+            codec = avcodec_find_encoder(AV_CODEC_ID_H264);	
+
+            initialize_codec_context(width, height, fps, codec);
+
+            // Try second encoder type
+            if (avcodec_open2(encCdcCtx_, codec, NULL) < 0)
+            {
+                ROS_ERROR("Could not open the backup encoder");
+                //Cleanup memory            
+                memory_cleanup();
+                pthread_mutex_unlock (&mutex_);
+                return;
+            }
         }
 
         /** allocate and AVFRame for encoder **/
@@ -193,8 +210,8 @@ namespace x264_image_transport {
             return;
         }
 
-	encFrame_->width = width;
-	encFrame_->height = height;
+        encFrame_->width = width;
+        encFrame_->height = height;
 
         // Prepare the software scale context
         // Will convert from RGB24 to YUV420P
@@ -210,7 +227,11 @@ namespace x264_image_transport {
             sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_RGB24, //src
                                     encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
                                     SWS_FAST_BILINEAR, NULL, NULL, NULL);
-            encFrame_->format = AV_PIX_FMT_RGB24;
+            //encFrame_->format = AV_PIX_FMT_RGB24;
+            // sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_RGB8, //src
+            //                         encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
+            //                         SWS_FAST_BILINEAR, NULL, NULL, NULL);
+           encFrame_->format = AV_PIX_FMT_YUV420P;//AV_PIX_FMT_RGB8;
         }
         else if (encoding == enc::RGB16)
         {
@@ -259,9 +280,9 @@ namespace x264_image_transport {
         av_init_packet(&encodedPacket_);
         encodedPacket_.data = NULL;    // packet data will be allocated by the encoder
         encodedPacket_.size = 0;
-			
-		initialized_ = true;
-		ROS_INFO("x264Publisher::initialize_codec(): codec initialized (width: %i, height: %i, fps: %i)",width,height,fps);
+
+        initialized_ = true;
+        ROS_INFO("x264Publisher::initialize_codec(): codec initialized (width: %i, height: %i, fps: %i)",width,height,fps);
         pthread_mutex_unlock (&mutex_);
 
         av_log_set_level(AV_LOG_QUIET); // silence all the errors/warnings
@@ -273,20 +294,19 @@ namespace x264_image_transport {
 	    ROS_INFO("x264Publisher::connectCallback");	 
 	    //This will always occur after the first publish...	 
 	}
-	
-	
-	
+
+
+
 	void x264Publisher::publish(const sensor_msgs::Image& message, const PublishFn& publish_fn) const
 	{	
         int width = message.width;
         int height = message.height;
-        int fps = 24;
+        int fps = 30;
         int srcstride = message.step;
-		
-		
+
 		if (!initialized_)
 		{
-		      initialize_codec(width,height,fps, message.encoding);  
+		    initialize_codec(width,height,fps, message.encoding);  
 		}
 
         //Something went wrong
@@ -298,8 +318,6 @@ namespace x264_image_transport {
 
         pthread_mutex_lock (&mutex_);
 
-
-
         //Pointer to RGB DATA    
         unsigned char* ptr[1];		
 		ptr[0] = (unsigned char*) &message.data[0];
@@ -309,42 +327,41 @@ namespace x264_image_transport {
  
         sws_scale(sws_ctx_,ptr,&srcstride,0,height,encFrame_->data, encFrame_->linesize);
 
-
         //int got_output = 0;
         int ret = 0;
         //uint8_t buffer[height * srcstride]; //one full frame
         int got_output = 0;
-	//encodedPacket_.data=buffer_;
-	//encodedPacket_.size=height * srcstride;
+        //encodedPacket_.data=buffer_;
+        //encodedPacket_.size=height * srcstride;
         ret = avcodec_encode_video2(encCdcCtx_, &encodedPacket_, encFrame_, &got_output);
         //ret = avcodec_encode_video(encCdcCtx_, buffer_, height * srcstride, encFrame_);
- 	ret = encodedPacket_.size;
-	//ROS_INFO("OUT:%d, %d",got_output, ret);
+ 	    ret = encodedPacket_.size;
+
         if (ret > 0 && got_output > 0)
         {
-                // OK, Let's send our packets...
-		    	x264_image_transport::x264Packet packet;
-		    	
-		    	//Set data
-		    	packet.data.resize(ret);
-		    	
-		    	//Set width & height
-		    	packet.img_width = width; 
-		    	packet.img_height = height;
-			
-		    	//copy NAL data
-		    	//memcpy(&packet.data[0],buffer_,ret);
-		    	memcpy(&packet.data[0],encodedPacket_.data,encodedPacket_.size);
-                //Affect header
-                packet.header = message.header;
-		packet.codec = 0;
-		    	//publish
-                        //ROS_INFO("Publishing x264 packet %d", packet.codec);
-		    	publish_fn(packet);
-		    	
-		    	//Not yet used...
-		    	av_free_packet(&encodedPacket_);
-                av_init_packet(&encodedPacket_);        
+            // OK, Let's send our packets...
+            x264_image_transport::x264Packet packet;
+
+            //Set data
+            packet.data.resize(ret);
+
+            //Set width & height
+            packet.img_width = width; 
+            packet.img_height = height;
+
+            //copy NAL data
+            //memcpy(&packet.data[0],buffer_,ret);
+            memcpy(&packet.data[0],encodedPacket_.data,encodedPacket_.size);
+            //Affect header
+            packet.header = message.header;
+            packet.codec = 0;
+            //publish
+            ROS_INFO("Publishing x264 packet %d", packet.codec);
+            publish_fn(packet);
+
+            //Not yet used...
+            av_free_packet(&encodedPacket_);
+            av_init_packet(&encodedPacket_);        
         }
 
         pthread_mutex_unlock (&mutex_);		
