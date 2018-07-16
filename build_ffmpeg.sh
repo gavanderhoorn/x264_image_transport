@@ -66,7 +66,6 @@ PATH="$PATH:$HOME/bin" PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./conf
   --extra-libs="-ldl" \
   --enable-gpl \
   --enable-libass \
-  --enable-libfdk-aac \
   --enable-libfreetype \
   --enable-libmp3lame \
   --enable-libopus \
@@ -75,9 +74,9 @@ PATH="$PATH:$HOME/bin" PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./conf
   --enable-libvpx \
   --enable-libx264 \
   --enable-nonfree \
-  --enable-x11grab \
   --enable-pic \
-  --enable-shared
+  --enable-shared \
+  --enable-nvenc
 PATH="$PATH:$HOME/bin" make
 make install
 make distclean
