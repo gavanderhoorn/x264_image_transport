@@ -146,9 +146,7 @@ namespace x264_image_transport {
         
         av_opt_set(encCdcCtx_->priv_data, "profile", "main", AV_OPT_SEARCH_CHILDREN);
         av_opt_set(encCdcCtx_->priv_data, "tune", "zerolatency", AV_OPT_SEARCH_CHILDREN);
-
-        if(codec->id == AV_CODEC_ID_H264)
-            av_opt_set(encCdcCtx_->priv_data, "preset", "ultrafast", AV_OPT_SEARCH_CHILDREN);
+        av_opt_set(encCdcCtx_->priv_data, "preset", "medium", AV_OPT_SEARCH_CHILDREN);
     }
 
 	void x264Publisher::initialize_codec(int width, int height, int fps, const std::string& encoding) const
@@ -163,10 +161,9 @@ namespace x264_image_transport {
         avformat_network_init();
 
         //Codec
-        AVCodec *codec = 0;
-      
-    //    codec = avcodec_find_encoder(AV_CODEC_ID_H264);	    
+        AVCodec *codec = 0; 
         codec = avcodec_find_encoder_by_name("h264_nvenc");
+
         if (!codec)
         {
             ROS_ERROR("Unable to find H264 encoder, ffmpeg version too old ?");
@@ -227,11 +224,7 @@ namespace x264_image_transport {
             sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_RGB24, //src
                                     encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
                                     SWS_FAST_BILINEAR, NULL, NULL, NULL);
-            //encFrame_->format = AV_PIX_FMT_RGB24;
-            // sws_ctx_ = sws_getContext(width, height, AV_PIX_FMT_RGB8, //src
-            //                         encCdcCtx_->width, encCdcCtx_->height, encCdcCtx_->pix_fmt, //dest
-            //                         SWS_FAST_BILINEAR, NULL, NULL, NULL);
-           encFrame_->format = AV_PIX_FMT_YUV420P;//AV_PIX_FMT_RGB8;
+           encFrame_->format = AV_PIX_FMT_YUV420P;
         }
         else if (encoding == enc::RGB16)
         {
